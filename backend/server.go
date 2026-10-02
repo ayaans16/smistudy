@@ -39,6 +39,7 @@ func (a *App) Handler() http.Handler {
 	})
 
 	a.authRoutes(mux)
+	a.profileRoutes(mux)
 
 	// Study data — every route below acts only on the signed-in user's rows.
 	mux.HandleFunc("GET /api/contributions", a.requireUser(a.handleContributions))

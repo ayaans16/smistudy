@@ -23,6 +23,7 @@ export default function SettingsPage() {
             </Link>
           </div>
           <ProfileSection me={me} onSaved={setMe} />
+          <VisibilitySection me={me} onSaved={setMe} />
           <PasswordSection me={me} />
           <DeleteSection me={me} />
         </main>
@@ -92,6 +93,62 @@ function ProfileSection({ me, onSaved }: { me: Me; onSaved: (me: Me) => void }) 
         <FormMessage error={msg.error} success={msg.success} />
         <SaveButton busy={busy}>Save profile</SaveButton>
       </form>
+    </Section>
+  );
+}
+
+function VisibilitySection({ me, onSaved }: { me: Me; onSaved: (me: Me) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const url = typeof window === "undefined" ? `/u/${me.username}` : `${window.location.origin}/u/${me.username}`;
+
+  async function toggle() {
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(await auth.updateMe({ profilePublic: !me.profilePublic }));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Section
+      title="Public profile"
+      description="Show your study graph, streaks and total hours on a page anyone can visit. Your email, notes and individual sessions always stay private."
+    >
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm font-semibold">{me.profilePublic ? "Your profile is public" : "Your profile is private"}</span>
+        <button
+          role="switch"
+          aria-checked={me.profilePublic}
+          aria-label="Public profile"
+          disabled={busy}
+          onClick={toggle}
+          className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${me.profilePublic ? "bg-accent" : "bg-line"}`}
+        >
+          <span
+            className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${me.profilePublic ? "left-6" : "left-1"}`}
+          />
+        </button>
+      </div>
+      {me.profilePublic && (
+        <div className="mt-4 flex items-center gap-2 rounded-xl bg-bg px-3 py-2 text-sm">
+          <Link href={`/u/${me.username}`} className="min-w-0 flex-1 truncate font-semibold text-accent-strong hover:underline">
+            {url}
+          </Link>
+          <button
+            onClick={() => navigator.clipboard.writeText(url).then(() => setCopied(true))}
+            className="shrink-0 rounded-full border border-line px-3 py-1 text-xs font-bold transition hover:border-muted"
+          >
+            {copied ? "Copied!" : "Copy link"}
+          </button>
+        </div>
+      )}
+      {error && <div className="mt-3"><FormMessage error={error} /></div>}
     </Section>
   );
 }

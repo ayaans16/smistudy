@@ -63,7 +63,7 @@ Moving from the single-user version: old sessions have no owner after the upgrad
 
 ## API
 
-Everything except `/api/health` and `/api/auth/*` needs a signed-in session and only touches that user's data.
+Everything except `/api/health`, `/api/auth/*` and public profiles needs a signed-in session and only touches that user's data.
 
 | Method | Path | Description |
 | --- | --- | --- |
@@ -82,6 +82,7 @@ Everything except `/api/health` and `/api/auth/*` needs a signed-in session and 
 | GET | `/api/sessions?date=YYYY-MM-DD` | Sessions on one day |
 | POST | `/api/sessions` | `{ "date", "minutes", "kind": "pomodoro"\|"manual", "note" }` |
 | DELETE | `/api/sessions/{id}` | Remove a session |
+| GET | `/api/users/{username}` (`/contributions`, `/years`) | Public profile and graph. No sign-in needed; returns 404 unless the user turned their profile public |
 
 The client sends `today` as its own local date, so days roll over at your midnight, not the server's.
 

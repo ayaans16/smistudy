@@ -58,6 +58,11 @@ function UserMenu({ me }: { me: Me }) {
             <div className="truncate font-bold">{me.displayName || me.username}</div>
             <div className="truncate text-muted">@{me.username}</div>
           </div>
+          {me.profilePublic && (
+            <Link href={`/u/${me.username}`} className="block px-4 py-2 hover:bg-accent-soft" onClick={() => setOpen(false)}>
+              My public profile
+            </Link>
+          )}
           <Link href="/settings" className="block px-4 py-2 hover:bg-accent-soft" onClick={() => setOpen(false)}>
             Settings
           </Link>
