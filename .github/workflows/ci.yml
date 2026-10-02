@@ -18,7 +18,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: backend/go.mod
+          # Latest patch release, so the vulnerability scan checks the stdlib we'd ship.
+          go-version: stable
+          check-latest: true
           cache-dependency-path: backend/go.sum
       - run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - run: go vet ./...
@@ -40,6 +42,6 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npx tsc --noEmit
+      - run: npx next typegen && npx tsc --noEmit
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high

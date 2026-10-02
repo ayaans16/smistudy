@@ -1,6 +1,6 @@
 module smistudy
 
-go 1.26.0
+go 1.26.6
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
