@@ -3,7 +3,12 @@ services:
     build: ./backend
     restart: unless-stopped
     environment:
-      SMISTUDY_ORIGIN: https://${DOMAIN:?set DOMAIN in .env}
+      SMISTUDY_ADDR: ":8080"
+      SMISTUDY_PUBLIC_URL: https://${DOMAIN:?set DOMAIN in .env}
+      SMISTUDY_CLIENT_IP_HEADER: X-Real-IP
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
     volumes:
       - smistudy-data:/data
 
