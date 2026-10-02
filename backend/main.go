@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -15,15 +16,21 @@ var errBadFilter = errors.New("filter must be \"last\" or a year")
 
 func main() {
 	addr := flag.String("addr", envOr("SMISTUDY_ADDR", ":8080"), "listen address")
-	dataPath := flag.String("data", envOr("SMISTUDY_DATA", "data/sessions.json"), "path to the sessions JSON file")
+	dbPath := flag.String("db", envOr("SMISTUDY_DB", "data/smistudy.db"), "path to the SQLite database")
+	legacyPath := flag.String("legacy-json", envOr("SMISTUDY_DATA", "data/sessions.json"), "old JSON store to import once, if present")
 	flag.Parse()
 
-	store, err := OpenStore(*dataPath)
+	store, err := OpenStore(*dbPath)
 	if err != nil {
 		log.Fatalf("open store: %v", err)
 	}
+	if n, err := store.ImportLegacyJSON(context.Background(), *legacyPath); err != nil {
+		log.Fatalf("import %s: %v", *legacyPath, err)
+	} else if n > 0 {
+		log.Printf("imported %d sessions from %s", n, *legacyPath)
+	}
 
-	log.Printf("smistudy api listening on %s (data: %s)", *addr, *dataPath)
+	log.Printf("smistudy api listening on %s (db: %s)", *addr, *dbPath)
 	log.Fatal(http.ListenAndServe(*addr, withCORS(NewServer(store))))
 }
 
@@ -45,7 +52,11 @@ func NewServer(store *Store) http.Handler {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, BuildCalendar(store.DailyTotals(), from, to))
+		totals, ok := dailyTotals(w, r, store)
+		if !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, BuildCalendar(totals, from, to))
 	})
 
 	mux.HandleFunc("GET /api/stats", func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +64,11 @@ func NewServer(store *Store) http.Handler {
 		if !ok {
 			return
 		}
-		writeJSON(w, http.StatusOK, BuildStats(store.DailyTotals(), today))
+		totals, ok := dailyTotals(w, r, store)
+		if !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, BuildStats(totals, today))
 	})
 
 	mux.HandleFunc("GET /api/years", func(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +76,11 @@ func NewServer(store *Store) http.Handler {
 		if !ok {
 			return
 		}
-		writeJSON(w, http.StatusOK, Years(store.DailyTotals(), today))
+		totals, ok := dailyTotals(w, r, store)
+		if !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, Years(totals, today))
 	})
 
 	// GET /api/sessions?date=2026-10-02
@@ -71,7 +90,12 @@ func NewServer(store *Store) http.Handler {
 			writeError(w, http.StatusBadRequest, "date must be YYYY-MM-DD")
 			return
 		}
-		writeJSON(w, http.StatusOK, store.OnDate(date))
+		sessions, err := store.OnDate(r.Context(), date)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, sessions)
 	})
 
 	mux.HandleFunc("POST /api/sessions", func(w http.ResponseWriter, r *http.Request) {
@@ -95,19 +119,19 @@ func NewServer(store *Store) http.Handler {
 		if len(in.Note) > 200 {
 			in.Note = in.Note[:200]
 		}
-		sess, err := store.Add(in)
+		sess, err := store.Add(r.Context(), in)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "could not save session")
+			serverError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, sess)
 	})
 
 	mux.HandleFunc("DELETE /api/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
-		found, err := store.Delete(r.PathValue("id"))
+		found, err := store.Delete(r.Context(), r.PathValue("id"))
 		switch {
 		case err != nil:
-			writeError(w, http.StatusInternalServerError, "could not delete session")
+			serverError(w, err)
 		case !found:
 			writeError(w, http.StatusNotFound, "session not found")
 		default:
@@ -131,6 +155,21 @@ func todayParam(w http.ResponseWriter, r *http.Request) (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return t, true
+}
+
+func dailyTotals(w http.ResponseWriter, r *http.Request, store *Store) (map[string]DayTotal, bool) {
+	totals, err := store.DailyTotals(r.Context())
+	if err != nil {
+		serverError(w, err)
+		return nil, false
+	}
+	return totals, true
+}
+
+// serverError logs the real cause and returns a generic message to the client.
+func serverError(w http.ResponseWriter, err error) {
+	log.Printf("internal error: %v", err)
+	writeError(w, http.StatusInternalServerError, "something went wrong")
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
