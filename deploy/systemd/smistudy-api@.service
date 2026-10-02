@@ -1,0 +1,35 @@
+# One API process per instance; the instance name is its port: smistudy-api@8081
+[Unit]
+Description=smistudy API (port %i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=__USER__
+EnvironmentFile=/etc/smistudy.env
+Environment=SMISTUDY_ADDR=0.0.0.0:%i
+ExecStart=__HOME__/smistudy-releases/current/smistudy-api
+Restart=always
+RestartSec=2
+TimeoutStopSec=25
+
+# Sandboxing: read-only system and home, except the data directory.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=__HOME__/smistudy-data
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

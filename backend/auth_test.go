@@ -322,3 +322,33 @@ func TestUsernameFromEmail(t *testing.T) {
 		}
 	}
 }
+
+func TestPublicProfilesAreOptIn(t *testing.T) {
+	env := newTestEnv(t)
+	ana := env.client(t)
+	ana.signUp("ana@example.com", "ana", "correct horse battery")
+	ana.do("POST", "/api/sessions", `{"date":"2026-10-02","minutes":30,"kind":"manual","note":"private note"}`)
+	visitor := env.client(t)
+
+	for _, path := range []string{"/api/users/ana", "/api/users/ana/contributions", "/api/users/nobody"} {
+		if code, _ := visitor.do("GET", path, ""); code != http.StatusNotFound {
+			t.Errorf("GET %s while private = %d, want 404", path, code)
+		}
+	}
+
+	ana.do("PATCH", "/api/me", `{"profilePublic":true}`)
+	code, body := visitor.do("GET", "/api/users/ANA?today=2026-10-02", "")
+	if code != http.StatusOK || body["username"] != "ana" {
+		t.Fatalf("public profile = %d %v", code, body)
+	}
+	if _, leaked := body["email"]; leaked {
+		t.Error("public profile exposes email")
+	}
+	if code, body := visitor.do("GET", "/api/users/ana/contributions?today=2026-10-02", ""); code != http.StatusOK || body["totalMinutes"] != 30.0 {
+		t.Errorf("public contributions = %d %v", code, body)
+	}
+	// Day-by-day session details (with notes) stay private.
+	if code, _ := visitor.do("GET", "/api/sessions?date=2026-10-02", ""); code != http.StatusUnauthorized {
+		t.Errorf("anonymous session list = %d, want 401", code)
+	}
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type Calendar, type Day } from "@/lib/api";
+import { api, profiles, type Calendar, type Day } from "@/lib/api";
 import { formatHours, formatLongDate, formatMinutes } from "@/lib/format";
 
 const CELL = 11;
@@ -10,9 +10,12 @@ const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
 
 type Props = {
   today: string;
-  refreshKey: number;
-  selected: string | null;
-  onSelect: (date: string | null) => void;
+  refreshKey?: number;
+  selected?: string | null;
+  /** Omit to make days non-clickable (e.g. on public profiles). */
+  onSelect?: (date: string | null) => void;
+  /** Show this user's public graph instead of the signed-in user's. */
+  username?: string;
 };
 
 function legendTitle(level: number, t: number[]) {
@@ -23,7 +26,7 @@ function legendTitle(level: number, t: number[]) {
   return `${lo === 1 ? "Under" : `${formatMinutes(lo)} –`} ${formatMinutes(hi)}`;
 }
 
-export default function StudyGraph({ today, refreshKey, selected, onSelect }: Props) {
+export default function StudyGraph({ today, refreshKey = 0, selected = null, onSelect, username }: Props) {
   const [filter, setFilter] = useState("last");
   const [years, setYears] = useState<number[]>([]);
   const [cal, setCal] = useState<Calendar | null>(null);
@@ -32,7 +35,10 @@ export default function StudyGraph({ today, refreshKey, selected, onSelect }: Pr
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.contributions(filter, today), api.years(today)])
+    const load = username
+      ? Promise.all([profiles.contributions(username, filter, today), profiles.years(username, today)])
+      : Promise.all([api.contributions(filter, today), api.years(today)]);
+    load
       .then(([c, y]) => {
         if (cancelled) return;
         setCal(c);
@@ -43,7 +49,7 @@ export default function StudyGraph({ today, refreshKey, selected, onSelect }: Pr
     return () => {
       cancelled = true;
     };
-  }, [filter, today, refreshKey]);
+  }, [filter, today, refreshKey, username]);
 
   const heading = cal
     ? `${formatHours(cal.totalMinutes)} hours studied ${filter === "last" ? "in the last year" : `in ${filter}`}`
@@ -51,7 +57,7 @@ export default function StudyGraph({ today, refreshKey, selected, onSelect }: Pr
 
   function chooseFilter(f: string) {
     setFilter(f);
-    onSelect(null);
+    onSelect?.(null);
   }
 
   return (
@@ -61,7 +67,7 @@ export default function StudyGraph({ today, refreshKey, selected, onSelect }: Pr
         <div className="relative rounded-2xl border border-line bg-card p-4 shadow-sm">
           {error ? (
             <p className="py-10 text-center text-sm text-muted">
-              Can&apos;t reach the smistudy API ({error}). Is the Go backend running on :8080?
+              Couldn&apos;t load the study graph ({error}).
             </p>
           ) : (
             <div className="overflow-x-auto pb-1">
@@ -93,13 +99,13 @@ export default function StudyGraph({ today, refreshKey, selected, onSelect }: Pr
                               <button
                                 key={day.date}
                                 aria-label={`${day.minutes ? formatMinutes(day.minutes) : "No study time"} on ${formatLongDate(day.date, true)}`}
-                                onClick={() => onSelect(selected === day.date ? null : day.date)}
+                                onClick={onSelect && (() => onSelect(selected === day.date ? null : day.date))}
                                 onMouseEnter={(e) => {
                                   const box = e.currentTarget.getBoundingClientRect();
                                   const parent = e.currentTarget.closest("section")!.getBoundingClientRect();
                                   setHover({ day, x: box.left - parent.left + CELL / 2, y: box.top - parent.top });
                                 }}
-                                className={`heat-${day.level} rounded-[3px] outline-offset-1 transition-opacity ${
+                                className={`heat-${day.level} rounded-[3px] ${onSelect ? "" : "cursor-default"} outline-offset-1 transition-opacity ${
                                   selected === day.date ? "outline-2 outline-fg" : ""
                                 } ${selected && selected !== day.date ? "opacity-40" : ""}`}
                                 style={{ width: CELL, height: CELL, outlineStyle: selected === day.date ? "solid" : undefined }}

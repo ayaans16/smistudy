@@ -89,6 +89,22 @@ export const auth = {
   deleteMe: (b: { password?: string; confirm?: string }) => post<void>("/me", b, "DELETE"),
 };
 
+export type PublicProfile = {
+  username: string;
+  displayName: string;
+  joinedAt: string;
+  stats: Stats;
+};
+
+const user = (username: string) => `/users/${encodeURIComponent(username)}`;
+
+export const profiles = {
+  get: (username: string, today: string) => request<PublicProfile>(`${user(username)}?today=${today}`),
+  contributions: (username: string, filter: string, today: string) =>
+    request<Calendar>(`${user(username)}/contributions?filter=${filter}&today=${today}`),
+  years: (username: string, today: string) => request<number[]>(`${user(username)}/years?today=${today}`),
+};
+
 export const api = {
   contributions: (filter: string, today: string) =>
     request<Calendar>(`/contributions?filter=${filter}&today=${today}`),

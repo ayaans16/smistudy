@@ -20,11 +20,14 @@ func main() {
 	}
 
 	// Subcommands for one-off admin tasks; the default is to serve.
-	if len(os.Args) > 1 && os.Args[1] == "claim-legacy" {
-		if err := claimLegacy(cfg, os.Args[2:]); err != nil {
-			log.Fatal(err)
+	if len(os.Args) > 1 {
+		cmds := map[string]func(Config, []string) error{"claim-legacy": claimLegacy, "backup": backup}
+		if cmd, ok := cmds[os.Args[1]]; ok {
+			if err := cmd(cfg, os.Args[2:]); err != nil {
+				log.Fatal(err)
+			}
+			return
 		}
-		return
 	}
 
 	flag.StringVar(&cfg.Addr, "addr", cfg.Addr, "listen address")
@@ -110,5 +113,26 @@ func claimLegacy(cfg Config, args []string) error {
 		return err
 	}
 	fmt.Printf("gave %d old sessions to %s\n", n, u.Username)
+	return nil
+}
+
+// backup writes a consistent copy of the live database (safe while the API is running).
+func backup(cfg Config, args []string) error {
+	fs := flag.NewFlagSet("backup", flag.ExitOnError)
+	db := fs.String("db", cfg.DBPath, "path to the SQLite database")
+	out := fs.String("out", "", "file to write the backup to (must not exist)")
+	fs.Parse(args)
+	if *out == "" {
+		return errors.New("-out is required")
+	}
+	store, err := OpenStore(*db)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	if err := store.Backup(context.Background(), *out); err != nil {
+		return err
+	}
+	fmt.Printf("backed up %s to %s\n", *db, *out)
 	return nil
 }

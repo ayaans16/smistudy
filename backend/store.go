@@ -224,6 +224,12 @@ func (s *Store) ClaimLegacy(ctx context.Context, userID string) (int64, error) {
 	return res.RowsAffected()
 }
 
+// Backup writes a transactionally consistent snapshot of the database to path.
+func (s *Store) Backup(ctx context.Context, path string) error {
+	_, err := s.db.ExecContext(ctx, `VACUUM INTO ?`, path)
+	return err
+}
+
 func newID() string {
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)
