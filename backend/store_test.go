@@ -109,3 +109,23 @@ func TestImportLegacyJSON(t *testing.T) {
 		t.Errorf("imported row = %+v", day)
 	}
 }
+
+func TestBackup(t *testing.T) {
+	ctx := context.Background()
+	s := openTestStore(t)
+	u := makeUser(t, s, "ana")
+	s.Add(ctx, u.ID, Session{Date: "2026-10-02", Minutes: 25, Kind: "pomodoro"})
+
+	out := filepath.Join(t.TempDir(), "backup.db")
+	if err := s.Backup(ctx, out); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := OpenStore(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restored.Close()
+	if totals, _ := restored.DailyTotals(ctx, u.ID); totals["2026-10-02"].Minutes != 25 {
+		t.Errorf("backup is missing data: %+v", totals)
+	}
+}
