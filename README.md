@@ -14,7 +14,7 @@ A cozy, smiski & sonny angel–themed study page.
 | API & logic | Go (standard library only) | `backend/` |
 | UI | Next.js 16, Tailwind CSS 4 | `frontend/` |
 
-The Go server stores sessions in a JSON file and does the calculations: the calendar grid, intensity levels, streaks and stats. Next.js forwards `/api/*` to it, so the browser only talks to one origin.
+The Go server stores sessions in SQLite and does the calculations: the calendar grid, intensity levels, streaks and stats. Next.js forwards `/api/*` to it, so the browser only talks to one origin.
 
 ## Running it
 
@@ -35,7 +35,8 @@ Then open http://localhost:3000.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SMISTUDY_ADDR` | `:8080` | API listen address |
-| `SMISTUDY_DATA` | `data/sessions.json` | Where sessions are stored |
+| `SMISTUDY_DB` | `data/smistudy.db` | SQLite database file |
+| `SMISTUDY_DATA` | `data/sessions.json` | Old JSON store; imported once on startup if present, then renamed to `.imported` |
 | `SMISTUDY_ORIGIN` | `http://localhost:3000` | Allowed CORS origin, for direct API calls |
 | `SMISTUDY_API_URL` | `http://localhost:8080` | Where Next.js proxies `/api` (frontend) |
 

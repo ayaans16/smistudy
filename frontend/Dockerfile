@@ -11,6 +11,7 @@ COPY . .
 # so this only matters if the Next server is hit without nginx in front.
 ARG SMISTUDY_API_URL=http://api:8080
 ENV SMISTUDY_API_URL=$SMISTUDY_API_URL \
+    NEXT_STANDALONE=1 \
     NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
