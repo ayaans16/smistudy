@@ -2,203 +2,113 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strings"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
-var errBadFilter = errors.New("filter must be \"last\" or a year")
-
 func main() {
-	addr := flag.String("addr", envOr("SMISTUDY_ADDR", ":8080"), "listen address")
-	dbPath := flag.String("db", envOr("SMISTUDY_DB", "data/smistudy.db"), "path to the SQLite database")
-	legacyPath := flag.String("legacy-json", envOr("SMISTUDY_DATA", "data/sessions.json"), "old JSON store to import once, if present")
+	cfg, err := LoadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Subcommands for one-off admin tasks; the default is to serve.
+	if len(os.Args) > 1 && os.Args[1] == "claim-legacy" {
+		if err := claimLegacy(cfg, os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	flag.StringVar(&cfg.Addr, "addr", cfg.Addr, "listen address")
+	flag.StringVar(&cfg.DBPath, "db", cfg.DBPath, "path to the SQLite database")
+	flag.StringVar(&cfg.LegacyDB, "legacy-json", cfg.LegacyDB, "old JSON store to import once, if present")
 	flag.Parse()
 
-	store, err := OpenStore(*dbPath)
+	store, err := OpenStore(cfg.DBPath)
 	if err != nil {
 		log.Fatalf("open store: %v", err)
 	}
-	if n, err := store.ImportLegacyJSON(context.Background(), *legacyPath); err != nil {
-		log.Fatalf("import %s: %v", *legacyPath, err)
+	defer store.Close()
+	if n, err := store.ImportLegacyJSON(context.Background(), cfg.LegacyDB); err != nil {
+		log.Fatalf("import %s: %v", cfg.LegacyDB, err)
 	} else if n > 0 {
-		log.Printf("imported %d sessions from %s", n, *legacyPath)
+		log.Printf("imported %d sessions from %s — run `smistudy-api claim-legacy -email you@example.com` to attach them to your account", n, cfg.LegacyDB)
 	}
 
-	log.Printf("smistudy api listening on %s (db: %s)", *addr, *dbPath)
-	log.Fatal(http.ListenAndServe(*addr, withCORS(NewServer(store))))
-}
+	go purgeLoop(store)
 
-func NewServer(store *Store) http.Handler {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
-
-	// GET /api/contributions?filter=last|2026&today=2026-10-02
-	mux.HandleFunc("GET /api/contributions", func(w http.ResponseWriter, r *http.Request) {
-		today, ok := todayParam(w, r)
-		if !ok {
-			return
-		}
-		from, to, err := RangeFor(r.URL.Query().Get("filter"), today)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		totals, ok := dailyTotals(w, r, store)
-		if !ok {
-			return
-		}
-		writeJSON(w, http.StatusOK, BuildCalendar(totals, from, to))
-	})
-
-	mux.HandleFunc("GET /api/stats", func(w http.ResponseWriter, r *http.Request) {
-		today, ok := todayParam(w, r)
-		if !ok {
-			return
-		}
-		totals, ok := dailyTotals(w, r, store)
-		if !ok {
-			return
-		}
-		writeJSON(w, http.StatusOK, BuildStats(totals, today))
-	})
-
-	mux.HandleFunc("GET /api/years", func(w http.ResponseWriter, r *http.Request) {
-		today, ok := todayParam(w, r)
-		if !ok {
-			return
-		}
-		totals, ok := dailyTotals(w, r, store)
-		if !ok {
-			return
-		}
-		writeJSON(w, http.StatusOK, Years(totals, today))
-	})
-
-	// GET /api/sessions?date=2026-10-02
-	mux.HandleFunc("GET /api/sessions", func(w http.ResponseWriter, r *http.Request) {
-		date := r.URL.Query().Get("date")
-		if _, err := time.Parse(dateLayout, date); err != nil {
-			writeError(w, http.StatusBadRequest, "date must be YYYY-MM-DD")
-			return
-		}
-		sessions, err := store.OnDate(r.Context(), date)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, sessions)
-	})
-
-	mux.HandleFunc("POST /api/sessions", func(w http.ResponseWriter, r *http.Request) {
-		var in Session
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&in); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid JSON body")
-			return
-		}
-		if _, err := time.Parse(dateLayout, in.Date); err != nil {
-			writeError(w, http.StatusBadRequest, "date must be YYYY-MM-DD")
-			return
-		}
-		if in.Minutes < 1 || in.Minutes > 24*60 {
-			writeError(w, http.StatusBadRequest, "minutes must be between 1 and 1440")
-			return
-		}
-		if in.Kind != "pomodoro" {
-			in.Kind = "manual"
-		}
-		in.Note = strings.TrimSpace(in.Note)
-		if len(in.Note) > 200 {
-			in.Note = in.Note[:200]
-		}
-		sess, err := store.Add(r.Context(), in)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusCreated, sess)
-	})
-
-	mux.HandleFunc("DELETE /api/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
-		found, err := store.Delete(r.Context(), r.PathValue("id"))
-		switch {
-		case err != nil:
-			serverError(w, err)
-		case !found:
-			writeError(w, http.StatusNotFound, "session not found")
-		default:
-			w.WriteHeader(http.StatusNoContent)
-		}
-	})
-
-	return mux
-}
-
-// todayParam reads the client's local date so day boundaries match the user's timezone.
-func todayParam(w http.ResponseWriter, r *http.Request) (time.Time, bool) {
-	raw := r.URL.Query().Get("today")
-	if raw == "" {
-		now := time.Now()
-		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC), true
+	app := NewApp(cfg, store, NewMailer(cfg))
+	srv := &http.Server{
+		Addr:              cfg.Addr,
+		Handler:           app.Handler(),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    16 << 10,
 	}
-	t, err := time.Parse(dateLayout, raw)
+
+	// Finish in-flight requests on SIGTERM so restarts behind a load balancer drop nothing.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	go func() {
+		<-ctx.Done()
+		shutdown, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		srv.Shutdown(shutdown)
+	}()
+
+	log.Printf("smistudy api listening on %s (db: %s, public url: %s, google sign-in: %v)",
+		cfg.Addr, cfg.DBPath, cfg.PublicURL, cfg.GoogleEnabled())
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal(err)
+	}
+}
+
+func purgeLoop(store *Store) {
+	for ; ; time.Sleep(time.Hour) {
+		if err := store.PurgeExpired(context.Background()); err != nil {
+			log.Printf("purge expired sessions: %v", err)
+		}
+	}
+}
+
+// claimLegacy attaches sessions from before accounts existed to one user.
+func claimLegacy(cfg Config, args []string) error {
+	fs := flag.NewFlagSet("claim-legacy", flag.ExitOnError)
+	email := fs.String("email", "", "email of the account that should own the old sessions")
+	db := fs.String("db", cfg.DBPath, "path to the SQLite database")
+	fs.Parse(args)
+
+	store, err := OpenStore(*db)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "today must be YYYY-MM-DD")
-		return time.Time{}, false
+		return err
 	}
-	return t, true
-}
-
-func dailyTotals(w http.ResponseWriter, r *http.Request, store *Store) (map[string]DayTotal, bool) {
-	totals, err := store.DailyTotals(r.Context())
+	defer store.Close()
+	ctx := context.Background()
+	addr, err := normalizeEmail(*email)
 	if err != nil {
-		serverError(w, err)
-		return nil, false
+		return err
 	}
-	return totals, true
-}
-
-// serverError logs the real cause and returns a generic message to the client.
-func serverError(w http.ResponseWriter, err error) {
-	log.Printf("internal error: %v", err)
-	writeError(w, http.StatusInternalServerError, "something went wrong")
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
-}
-
-func writeError(w http.ResponseWriter, status int, msg string) {
-	writeJSON(w, status, map[string]string{"error": msg})
-}
-
-func withCORS(next http.Handler) http.Handler {
-	origin := envOr("SMISTUDY_ORIGIN", "http://localhost:3000")
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+	u, err := store.UserByEmail(ctx, addr)
+	if err != nil {
+		return err
 	}
-	return fallback
+	if u == nil {
+		return fmt.Errorf("no account with email %s — sign up first", addr)
+	}
+	n, err := store.ClaimLegacy(ctx, u.ID)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("gave %d old sessions to %s\n", n, u.Username)
+	return nil
 }

@@ -106,20 +106,21 @@ func (s *Store) migrate(ctx context.Context) error {
 	return nil
 }
 
-func (s *Store) Add(ctx context.Context, sess Session) (Session, error) {
+func (s *Store) Add(ctx context.Context, userID string, sess Session) (Session, error) {
 	sess.ID = newID()
 	sess.CreatedAt = time.Now().UTC().Truncate(time.Millisecond)
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO study_sessions (id, date, minutes, kind, note, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		sess.ID, sess.Date, sess.Minutes, sess.Kind, sess.Note, sess.CreatedAt.UnixMilli())
+		`INSERT INTO study_sessions (id, user_id, date, minutes, kind, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		sess.ID, userID, sess.Date, sess.Minutes, sess.Kind, sess.Note, sess.CreatedAt.UnixMilli())
 	if err != nil {
 		return Session{}, err
 	}
 	return sess, nil
 }
 
-func (s *Store) Delete(ctx context.Context, id string) (bool, error) {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM study_sessions WHERE id = ?`, id)
+// Delete removes a session only if it belongs to userID.
+func (s *Store) Delete(ctx context.Context, userID, id string) (bool, error) {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM study_sessions WHERE id = ? AND user_id = ?`, id, userID)
 	if err != nil {
 		return false, err
 	}
@@ -128,9 +129,10 @@ func (s *Store) Delete(ctx context.Context, id string) (bool, error) {
 }
 
 // OnDate returns the sessions logged on a date, oldest first.
-func (s *Store) OnDate(ctx context.Context, date string) ([]Session, error) {
+func (s *Store) OnDate(ctx context.Context, userID, date string) ([]Session, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, date, minutes, kind, note, created_at FROM study_sessions WHERE date = ? ORDER BY created_at`, date)
+		`SELECT id, date, minutes, kind, note, created_at FROM study_sessions
+		 WHERE user_id = ? AND date = ? ORDER BY created_at`, userID, date)
 	if err != nil {
 		return nil, err
 	}
@@ -149,9 +151,9 @@ func (s *Store) OnDate(ctx context.Context, date string) ([]Session, error) {
 }
 
 // DailyTotals sums minutes and session counts per date.
-func (s *Store) DailyTotals(ctx context.Context) (map[string]DayTotal, error) {
+func (s *Store) DailyTotals(ctx context.Context, userID string) (map[string]DayTotal, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT date, SUM(minutes), COUNT(*) FROM study_sessions GROUP BY date`)
+		`SELECT date, SUM(minutes), COUNT(*) FROM study_sessions WHERE user_id = ? GROUP BY date`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -211,6 +213,15 @@ func (s *Store) ImportLegacyJSON(ctx context.Context, path string) (int, error) 
 		return 0, err
 	}
 	return len(legacy), os.Rename(path, path+".imported")
+}
+
+// ClaimLegacy gives every ownerless session (from the single-user era) to userID.
+func (s *Store) ClaimLegacy(ctx context.Context, userID string) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `UPDATE study_sessions SET user_id = ? WHERE user_id IS NULL`, userID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 func newID() string {
