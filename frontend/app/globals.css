@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/* Dark mode follows the .dark class on <html>, set by the theme toggle. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f7f8f2;
+  --card: #ffffff;
+  --line: #e4e8d9;
+  --fg: #28311f;
+  --muted: #6d7762;
+  --accent: #8cc63f; /* smiski green */
+  --accent-strong: #5b961f;
+  --accent-soft: #eef6e0;
+  --blush: #f7c9cf; /* sonny angel pink */
+  --blush-soft: #fdf0f2;
+
+  --heat-0: #ebede4;
+  --heat-1: #d5ebb0;
+  --heat-2: #aad873;
+  --heat-3: #7cbb3d;
+  --heat-4: #4d881b;
+  --heat-glow: transparent;
+
+  --smi-body: #d4eaae;
+  --smi-shade: #a9cf76;
+  --skin: #fde4d4;
+}
+
+/* Lights off: smiski glow in the dark. */
+.dark {
+  --bg: #0d110d;
+  --card: #141a14;
+  --line: #232d22;
+  --fg: #e5eedb;
+  --muted: #8f9c84;
+  --accent: #b4f06a;
+  --accent-strong: #c9ff85;
+  --accent-soft: #1c2817;
+  --blush: #e9a5b0;
+  --blush-soft: #2a1b1e;
+
+  --heat-0: #1a2119;
+  --heat-1: #25431b;
+  --heat-2: #3b7225;
+  --heat-3: #69b23a;
+  --heat-4: #b4f06a;
+  --heat-glow: rgba(180, 240, 106, 0.55);
+
+  --smi-body: #c8f58f;
+  --smi-shade: #8fd15a;
+  --skin: #f3d3c2;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-blush: var(--blush);
+  --color-blush-soft: var(--blush-soft);
+  --font-sans: var(--font-nunito);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.heat-0 { background: var(--heat-0); }
+.heat-1 { background: var(--heat-1); }
+.heat-2 { background: var(--heat-2); }
+.heat-3 { background: var(--heat-3); }
+.heat-4 { background: var(--heat-4); box-shadow: 0 0 6px var(--heat-glow); }
+
+.glow {
+  filter: drop-shadow(0 0 10px var(--heat-glow));
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-bob {
+  animation: bob 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bob { animation: none; }
+}

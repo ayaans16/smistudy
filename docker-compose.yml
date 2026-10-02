@@ -1,0 +1,52 @@
+services:
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      SMISTUDY_ORIGIN: https://${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - smistudy-data:/data
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  nginx:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/nginx/templates:/etc/nginx/templates:ro
+      - ./deploy/nginx/auth:/etc/nginx/auth:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    # Reload every 6h so renewed certificates are picked up.
+    command: >-
+      /bin/sh -c 'while :; do sleep 6h; nginx -s reload; done &
+      exec /docker-entrypoint.sh nginx -g "daemon off;"'
+
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    # Tries renewal twice a day; certbot only renews certificates close to expiry.
+    entrypoint: >-
+      /bin/sh -c 'trap exit TERM; while :; do
+      certbot renew --webroot -w /var/www/certbot --quiet;
+      sleep 12h & wait $${!}; done'
+
+volumes:
+  smistudy-data:
+  letsencrypt:
+  certbot-www:

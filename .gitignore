@@ -1,0 +1,5 @@
+backend/data/
+.DS_Store
+.env
+deploy/nginx/auth/*
+!deploy/nginx/auth/.gitkeep
