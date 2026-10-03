@@ -57,6 +57,10 @@ export default function PrivacyPage() {
           <strong>Reward goals:</strong> the rewards you set for yourself, their hour targets and start dates, and when you
           claimed them. These are private and never appear on your public profile or stats card.
         </li>
+        <li>
+          <strong>Follows and blocks:</strong> who you follow, who follows you, who you&apos;ve blocked, and when. See section 5
+          for what&apos;s public.
+        </li>
         <li><strong>Messages:</strong> anything you send us by email, such as a privacy request.</li>
       </ul>
       <h3>Information from Google, if you use &quot;Continue with Google&quot;</h3>
@@ -92,6 +96,7 @@ export default function PrivacyPage() {
         <li>To create your account, sign you in and keep your account secure.</li>
         <li>To store your study sessions, to-do list and reward goals, and show you your graph, streaks, statistics and goal progress.</li>
         <li>To show your public profile, only if you choose to turn it on.</li>
+        <li>To let you follow people and see a weekly leaderboard of the people you follow.</li>
         <li>
           To send emails about your account: confirming your email address, resetting your password, or telling you someone
           tried to sign up with your email. We don&apos;t send marketing or promotional emails.
@@ -116,6 +121,15 @@ export default function PrivacyPage() {
         weekly study time, your streaks, and your study graph (minutes studied per day). Your email address, your notes and
         the details of individual sessions are <strong>never</strong> public. Turning the setting off hides your profile
         immediately.
+      </p>
+      <h3>Following</h3>
+      <p>
+        You need a public profile to follow people, and only public profiles can be followed. On your public profile, anyone can
+        see how many people you follow and who follows you, and the lists of those people (only people whose profiles are also
+        public). People you follow can see your study totals and streak on their Friends leaderboard, the same numbers already
+        shown on your public profile. If you make your profile private, you disappear from every follower and following list
+        until you make it public again. You can remove a follower or block someone at any time. Your blocked list is private, and
+        blocked people aren&apos;t notified.
       </p>
 
       <h2>6. Who we share it with</h2>
@@ -163,7 +177,7 @@ export default function PrivacyPage() {
       <ul>
         <li><strong>Account and study data:</strong> as long as your account exists.</li>
         <li>
-          <strong>When you delete your account:</strong> your account, sessions, study data, to-do list and reward goals are removed from our live
+          <strong>When you delete your account:</strong> your account, sessions, study data, to-do list, reward goals, follows and blocks are removed from our live
           database immediately. Copies in our daily backups are deleted automatically within 14 days.
         </li>
         <li><strong>Sign-in sessions:</strong> expire 30 days after you were last active (sooner if you log out).</li>
