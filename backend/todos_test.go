@@ -106,3 +106,16 @@ func TestTodoValidationAndLimit(t *testing.T) {
 		t.Errorf("todo #%d = %d, want 409", maxTodos+1, code)
 	}
 }
+
+func TestExportIncludesTodos(t *testing.T) {
+	env := newTestEnv(t)
+	c := env.client(t)
+	c.signUp("ana@example.com", "ana", "correct horse battery")
+	c.do("POST", "/api/todos", `{"text":"export me"}`)
+
+	_, body := c.do("GET", "/api/me/export", "")
+	todos, _ := body["todos"].([]any)
+	if len(todos) != 1 || todos[0].(map[string]any)["text"] != "export me" {
+		t.Errorf("export todos = %v", body["todos"])
+	}
+}
