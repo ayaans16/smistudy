@@ -122,6 +122,24 @@ export const todos = {
   clearDone: () => post<{ cleared: number }>("/todos/clear-done"),
 };
 
+export type RewardGoal = {
+  id: string;
+  reward: string;
+  targetMinutes: number;
+  startDate: string;
+  createdAt: string;
+  claimedAt?: string;
+  minutes: number;
+  reachedOn?: string;
+};
+
+export const goals = {
+  list: () => request<RewardGoal[]>("/goals"),
+  add: (b: { reward: string; targetHours: number; startDate: string }) => post<RewardGoal>("/goals", b),
+  claim: (id: string) => post<void>(`/goals/${encodeURIComponent(id)}/claim`),
+  remove: (id: string) => post<void>(`/goals/${encodeURIComponent(id)}`, undefined, "DELETE"),
+};
+
 export const api = {
   contributions: (filter: string, today: string) =>
     request<Calendar>(`/contributions?filter=${filter}&today=${today}`),
