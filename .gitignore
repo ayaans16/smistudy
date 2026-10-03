@@ -3,3 +3,5 @@ backend/data/
 .env
 deploy/nginx/auth/*
 !deploy/nginx/auth/.gitkeep
+backend/smistudy
+backend/smistudy-api
