@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import DayActivity from "@/components/DayActivity";
 import { AngelBuddy } from "@/components/Mascots";
 import Pomodoro from "@/components/Pomodoro";
+import RewardGoals from "@/components/RewardGoals";
 import SiteHeader from "@/components/SiteHeader";
 import StatsCards from "@/components/StatsCards";
 import StudyGraph from "@/components/StudyGraph";
@@ -46,6 +47,7 @@ export default function Home() {
                 <AngelBuddy className="absolute -bottom-2 right-4 h-24 w-24 animate-bob" />
               </div>
               <StatsCards today={today} refreshKey={refreshKey} />
+              <RewardGoals refreshKey={refreshKey} />
               <DayActivity date={selected ?? today} today={today} refreshKey={refreshKey} onChange={refresh} />
             </div>
           </div>
