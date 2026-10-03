@@ -115,7 +115,7 @@ Everything except `/api/health`, `/api/auth/*` and public profiles needs a signe
 | GET | `/api/auth/providers` | Which sign-in methods are enabled |
 | GET / PATCH / DELETE | `/api/me` | Your account; update `username`, `displayName`, `profilePublic`; delete account |
 | POST | `/api/me/password` | `{ "current", "new" }`; signs out other devices |
-| GET | `/api/me/export` | Download all your data (account, study sessions, to-dos) as JSON |
+| GET | `/api/me/export` | Download all your data (account, study sessions, to-dos, reward goals) as JSON |
 | GET | `/api/contributions?filter=last\|2026&today=YYYY-MM-DD` | Calendar grid for the graph |
 | GET | `/api/years?today=…` | Years available in the filter |
 | GET | `/api/stats?today=…` | Today, week, streaks, totals |
@@ -125,6 +125,9 @@ Everything except `/api/health`, `/api/auth/*` and public profiles needs a signe
 | GET / POST | `/api/todos` | Your to-do list (open first, then completed) / add `{ "text" }` (max 200 items) |
 | PATCH / DELETE | `/api/todos/{id}` | Update `{ "text", "done" }` / delete a to-do |
 | POST | `/api/todos/clear-done` | Delete all completed to-dos |
+| GET / POST | `/api/goals` | Your reward goals with progress / add `{ "reward", "targetHours", "startDate" }` (max 50) |
+| POST | `/api/goals/{id}/claim` | Claim a reached goal's reward |
+| DELETE | `/api/goals/{id}` | Delete a goal |
 | GET | `/api/users/{username}` (`/contributions`, `/years`) | Public profile and graph. No sign-in needed; returns 404 unless the user made their profile public |
 | GET | `/api/users/{username}/card.svg?theme=light\|dark` | Embeddable SVG stats card (mini heatmap, hours, streaks). Private and unknown users get the same placeholder card; cached for 30 minutes |
 
