@@ -95,7 +95,15 @@ export type PublicProfile = {
   displayName: string;
   joinedAt: string;
   stats: Stats;
+  followers: number;
+  following: number;
+  /** Present when the visitor is signed in. */
+  viewer?: { isSelf: boolean; following: boolean; followsYou: boolean };
 };
+
+export type FollowUser = { username: string; displayName: string; since: string };
+export type FriendStats = FollowUser & { weekMinutes: number; totalMinutes: number; currentStreak: number };
+export type Follower = FollowUser & { followingBack: boolean };
 
 const user = (username: string) => `/users/${encodeURIComponent(username)}`;
 
@@ -138,6 +146,19 @@ export const goals = {
   add: (b: { reward: string; targetHours: number; startDate: string }) => post<RewardGoal>("/goals", b),
   claim: (id: string) => post<void>(`/goals/${encodeURIComponent(id)}/claim`),
   remove: (id: string) => post<void>(`/goals/${encodeURIComponent(id)}`, undefined, "DELETE"),
+};
+
+export const social = {
+  follow: (username: string) => post<void>(`${user(username)}/follow`),
+  unfollow: (username: string) => post<void>(`${user(username)}/follow`, undefined, "DELETE"),
+  block: (username: string) => post<void>(`${user(username)}/block`),
+  unblock: (username: string) => post<void>(`${user(username)}/block`, undefined, "DELETE"),
+  followers: (username: string) => request<FollowUser[]>(`${user(username)}/followers`),
+  following: (username: string) => request<FollowUser[]>(`${user(username)}/following`),
+  myFollowing: (today: string) => request<FriendStats[]>(`/me/following?today=${today}`),
+  myFollowers: () => request<Follower[]>("/me/followers"),
+  removeFollower: (username: string) => post<void>(`/me/followers/${encodeURIComponent(username)}`, undefined, "DELETE"),
+  blocked: () => request<FollowUser[]>("/me/blocked"),
 };
 
 export const api = {
