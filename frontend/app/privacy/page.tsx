@@ -53,6 +53,10 @@ export default function PrivacyPage() {
           <strong>To-do list:</strong> the tasks you add, whether each is done, and when it was created and completed. Your
           to-do list is private and never appears on your public profile or stats card.
         </li>
+        <li>
+          <strong>Reward goals:</strong> the rewards you set for yourself, their hour targets and start dates, and when you
+          claimed them. These are private and never appear on your public profile or stats card.
+        </li>
         <li><strong>Messages:</strong> anything you send us by email, such as a privacy request.</li>
       </ul>
       <h3>Information from Google, if you use &quot;Continue with Google&quot;</h3>
@@ -86,7 +90,7 @@ export default function PrivacyPage() {
       <h2>3. Why we use it</h2>
       <ul>
         <li>To create your account, sign you in and keep your account secure.</li>
-        <li>To store your study sessions and to-do list, and show you your graph, streaks and statistics.</li>
+        <li>To store your study sessions, to-do list and reward goals, and show you your graph, streaks, statistics and goal progress.</li>
         <li>To show your public profile, only if you choose to turn it on.</li>
         <li>
           To send emails about your account: confirming your email address, resetting your password, or telling you someone
@@ -159,7 +163,7 @@ export default function PrivacyPage() {
       <ul>
         <li><strong>Account and study data:</strong> as long as your account exists.</li>
         <li>
-          <strong>When you delete your account:</strong> your account, sessions, study data and to-do list are removed from our live
+          <strong>When you delete your account:</strong> your account, sessions, study data, to-do list and reward goals are removed from our live
           database immediately. Copies in our daily backups are deleted automatically within 14 days.
         </li>
         <li><strong>Sign-in sessions:</strong> expire 30 days after you were last active (sooner if you log out).</li>
