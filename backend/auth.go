@@ -401,6 +401,11 @@ func (a *App) handleExport(w http.ResponseWriter, r *http.Request, u *User) {
 		serverError(w, err)
 		return
 	}
+	goals, err := a.goalsWithProgress(r, u.ID)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
 	w.Header().Set("Content-Disposition", `attachment; filename="smistudy-data-`+u.Username+`.json"`)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"exportedAt": time.Now().UTC().Format(time.RFC3339),
@@ -416,6 +421,7 @@ func (a *App) handleExport(w http.ResponseWriter, r *http.Request, u *User) {
 		},
 		"studySessions": sessions,
 		"todos":         todos,
+		"rewardGoals":   goals,
 	})
 }
 

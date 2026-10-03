@@ -36,6 +36,11 @@ func TestRewardGoalFlow(t *testing.T) {
 		t.Error("goal should be claimed")
 	}
 
+	_, body := c.do("GET", "/api/me/export", "")
+	if goals, _ := body["rewardGoals"].([]any); len(goals) != 1 {
+		t.Errorf("export goals = %v", body["rewardGoals"])
+	}
+
 	if code, _ := c.do("DELETE", "/api/goals/"+id, ""); code != http.StatusNoContent {
 		t.Errorf("delete = %d", code)
 	}
