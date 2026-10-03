@@ -97,6 +97,20 @@ func (c *client) do(method, path, body string, headers ...string) (int, map[stri
 	return res.StatusCode, out
 }
 
+// doList is do for endpoints that return a JSON array.
+func (c *client) doList(method, path string) (int, []map[string]any) {
+	c.t.Helper()
+	req, _ := http.NewRequest(method, c.env.srv.URL+path, nil)
+	res, err := c.hc.Do(req)
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var out []map[string]any
+	json.NewDecoder(res.Body).Decode(&out)
+	return res.StatusCode, out
+}
+
 // signUp registers, follows the emailed verification link, and ends up signed in.
 func (c *client) signUp(email, username, password string) {
 	c.t.Helper()

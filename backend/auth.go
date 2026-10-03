@@ -396,6 +396,11 @@ func (a *App) handleExport(w http.ResponseWriter, r *http.Request, u *User) {
 		serverError(w, err)
 		return
 	}
+	todos, err := a.store.Todos(r.Context(), u.ID)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
 	w.Header().Set("Content-Disposition", `attachment; filename="smistudy-data-`+u.Username+`.json"`)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"exportedAt": time.Now().UTC().Format(time.RFC3339),
@@ -410,6 +415,7 @@ func (a *App) handleExport(w http.ResponseWriter, r *http.Request, u *User) {
 			"termsVersion":  u.TermsVersion,
 		},
 		"studySessions": sessions,
+		"todos":         todos,
 	})
 }
 

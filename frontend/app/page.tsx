@@ -7,6 +7,7 @@ import Pomodoro from "@/components/Pomodoro";
 import SiteHeader from "@/components/SiteHeader";
 import StatsCards from "@/components/StatsCards";
 import StudyGraph from "@/components/StudyGraph";
+import TodoList from "@/components/TodoList";
 import { localDateKey } from "@/lib/format";
 import { useMe } from "@/lib/useMe";
 
@@ -30,7 +31,10 @@ export default function Home() {
       {today && me && (
         <main className="flex flex-col gap-8">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_1fr]">
-            <Pomodoro onLogged={refresh} />
+            <div className="flex flex-col gap-6">
+              <Pomodoro onLogged={refresh} />
+              <TodoList />
+            </div>
             <div className="flex flex-col gap-6">
               <div className="relative overflow-hidden rounded-3xl border border-line bg-accent-soft p-6">
                 <p className="max-w-[70%] text-xl font-extrabold leading-snug">
