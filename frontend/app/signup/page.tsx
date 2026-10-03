@@ -9,6 +9,7 @@ import { useMe } from "@/lib/useMe";
 export default function SignupPage() {
   useMe({ guestOnly: true });
   const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -22,7 +23,7 @@ export default function SignupPage() {
     setBusy(true);
     setError(null);
     try {
-      await auth.signup(form);
+      await auth.signup({ ...form, acceptTerms: agreed });
       setSent(true);
     } catch (err) {
       setError(errorMessage(err));
@@ -75,6 +76,20 @@ export default function SignupPage() {
           value={form.password}
           onChange={set("password")}
         />
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            required
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent-strong)]"
+          />
+          <span>
+            I&apos;m 13 or older and I agree to the{" "}
+            <Link href="/terms" target="_blank" className="font-bold text-accent-strong hover:underline">Terms of Service</Link> and{" "}
+            <Link href="/privacy" target="_blank" className="font-bold text-accent-strong hover:underline">Privacy Policy</Link>.
+          </span>
+        </label>
         <FormMessage error={error} />
         <SubmitButton busy={busy}>Create account</SubmitButton>
       </form>

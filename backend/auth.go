@@ -25,6 +25,7 @@ func (a *App) authRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/me", a.requireUser(a.handleUpdateMe))
 	mux.HandleFunc("POST /api/me/password", a.requireUser(a.handleChangePassword))
 	mux.HandleFunc("DELETE /api/me", a.requireUser(a.handleDeleteMe))
+	mux.HandleFunc("GET /api/me/export", a.requireUser(a.handleExport))
 }
 
 type meResponse struct {
@@ -43,8 +44,15 @@ func (a *App) handleSignup(w http.ResponseWriter, r *http.Request) {
 	if !a.allow(w, a.lim.signup, a.clientIP(r)) {
 		return
 	}
-	var in struct{ Email, Password, Username string }
+	var in struct {
+		Email, Password, Username string
+		AcceptTerms               bool
+	}
 	if !decodeJSON(w, r, &in) {
+		return
+	}
+	if !in.AcceptTerms {
+		writeError(w, http.StatusBadRequest, "please agree to the Terms of Service and Privacy Policy")
 		return
 	}
 	email, err := normalizeEmail(in.Email)
@@ -378,6 +386,42 @@ func (a *App) handleChangePassword(w http.ResponseWriter, r *http.Request, u *Us
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleExport returns everything stored about the user as a JSON download
+// (right of access under PIPEDA; data portability under Quebec's Law 25).
+func (a *App) handleExport(w http.ResponseWriter, r *http.Request, u *User) {
+	sessions, err := a.store.AllSessions(r.Context(), u.ID)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	w.Header().Set("Content-Disposition", `attachment; filename="smistudy-data-`+u.Username+`.json"`)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"exportedAt": time.Now().UTC().Format(time.RFC3339),
+		"account": map[string]any{
+			"email":         u.Email,
+			"emailVerified": u.EmailVerified,
+			"username":      u.Username,
+			"displayName":   u.DisplayName,
+			"profilePublic": u.ProfilePublic,
+			"signInMethods": signInMethods(u),
+			"createdAt":     u.CreatedAt.Format(time.RFC3339),
+			"termsVersion":  u.TermsVersion,
+		},
+		"studySessions": sessions,
+	})
+}
+
+func signInMethods(u *User) []string {
+	methods := []string{}
+	if u.PasswordHash != "" {
+		methods = append(methods, "password")
+	}
+	if u.GoogleSub != "" {
+		methods = append(methods, "google")
+	}
+	return methods
 }
 
 // handleDeleteMe needs the password, or (for Google-only accounts) the username typed out.

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/api";
 import { AngelBuddy, SmiBuddy } from "./Mascots";
@@ -80,6 +81,11 @@ export function GoogleButton() {
         </svg>
         Continue with Google
       </a>
+      <p className="mt-2 text-center text-xs text-muted">
+        By continuing with Google, you confirm you&apos;re 13 or older and agree to our{" "}
+        <Link href="/terms" className="font-semibold text-accent-strong hover:underline">Terms</Link> and{" "}
+        <Link href="/privacy" className="font-semibold text-accent-strong hover:underline">Privacy Policy</Link>.
+      </p>
       <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-widest text-muted">
         <span className="h-px flex-1 bg-line" />
         or

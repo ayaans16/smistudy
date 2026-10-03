@@ -101,7 +101,7 @@ func (c *client) do(method, path, body string, headers ...string) (int, map[stri
 func (c *client) signUp(email, username, password string) {
 	c.t.Helper()
 	code, body := c.do("POST", "/api/auth/signup",
-		`{"email":"`+email+`","username":"`+username+`","password":"`+password+`"}`)
+		`{"email":"`+email+`","username":"`+username+`","password":"`+password+`","acceptTerms":true}`)
 	if code != http.StatusAccepted {
 		c.t.Fatalf("signup %s: %d %v", email, code, body)
 	}
@@ -120,7 +120,7 @@ func TestSignupVerifyLoginFlow(t *testing.T) {
 	}
 
 	// Unverified accounts can't log in yet.
-	c.do("POST", "/api/auth/signup", `{"email":"Ana@Example.com","username":"ana","password":"correct horse battery"}`)
+	c.do("POST", "/api/auth/signup", `{"email":"Ana@Example.com","username":"ana","password":"correct horse battery","acceptTerms":true}`)
 	if code, body := c.do("POST", "/api/auth/login", `{"email":"ana@example.com","password":"correct horse battery"}`); code != http.StatusForbidden || body["code"] != "email_unverified" {
 		t.Fatalf("unverified login = %d %v", code, body)
 	}
@@ -178,7 +178,7 @@ func TestSignupDoesNotRevealExistingEmails(t *testing.T) {
 	env.client(t).signUp("ana@example.com", "ana", "correct horse battery")
 
 	code, body := env.client(t).do("POST", "/api/auth/signup",
-		`{"email":"ana@example.com","username":"someoneelse","password":"a different password"}`)
+		`{"email":"ana@example.com","username":"someoneelse","password":"a different password","acceptTerms":true}`)
 	if code != http.StatusAccepted || body["status"] != "check_email" {
 		t.Errorf("signup with existing email = %d %v, want the same 202 as a new email", code, body)
 	}
@@ -259,11 +259,11 @@ func TestInputValidation(t *testing.T) {
 	env := newTestEnv(t)
 	c := env.client(t)
 	cases := []struct{ name, body string }{
-		{"short password", `{"email":"a@example.com","username":"abc","password":"short"}`},
-		{"bad email", `{"email":"not-an-email","username":"abc","password":"long enough pw"}`},
-		{"sql-ish username", `{"email":"a@example.com","username":"x' OR 1=1--","password":"long enough pw"}`},
-		{"reserved username", `{"email":"a@example.com","username":"admin","password":"long enough pw"}`},
-		{"unknown field", `{"email":"a@example.com","username":"abc","password":"long enough pw","admin":true}`},
+		{"short password", `{"email":"a@example.com","username":"abc","password":"short","acceptTerms":true}`},
+		{"bad email", `{"email":"not-an-email","username":"abc","password":"long enough pw","acceptTerms":true}`},
+		{"sql-ish username", `{"email":"a@example.com","username":"x' OR 1=1--","password":"long enough pw","acceptTerms":true}`},
+		{"reserved username", `{"email":"a@example.com","username":"admin","password":"long enough pw","acceptTerms":true}`},
+		{"unknown field", `{"email":"a@example.com","username":"abc","password":"long enough pw","admin":true,"acceptTerms":true}`},
 	}
 	for _, tc := range cases {
 		if code, _ := c.do("POST", "/api/auth/signup", tc.body); code != http.StatusBadRequest {
@@ -350,5 +350,45 @@ func TestPublicProfilesAreOptIn(t *testing.T) {
 	// Day-by-day session details (with notes) stay private.
 	if code, _ := visitor.do("GET", "/api/sessions?date=2026-10-02", ""); code != http.StatusUnauthorized {
 		t.Errorf("anonymous session list = %d, want 401", code)
+	}
+}
+
+func TestSignupRequiresAgreeingToTerms(t *testing.T) {
+	env := newTestEnv(t)
+	code, body := env.client(t).do("POST", "/api/auth/signup",
+		`{"email":"ana@example.com","username":"ana","password":"correct horse battery"}`)
+	if code != http.StatusBadRequest {
+		t.Errorf("signup without acceptTerms = %d %v, want 400", code, body)
+	}
+	env.client(t).signUp("bea@example.com", "bea", "correct horse battery")
+	u, _ := env.store.UserByEmail(context.Background(), "bea@example.com")
+	if u.TermsVersion != TermsVersion {
+		t.Errorf("terms version = %q, want %q", u.TermsVersion, TermsVersion)
+	}
+}
+
+func TestExportContainsOnlyYourData(t *testing.T) {
+	env := newTestEnv(t)
+	ana, bea := env.client(t), env.client(t)
+	ana.signUp("ana@example.com", "ana", "correct horse battery")
+	bea.signUp("bea@example.com", "bea", "another long password")
+	ana.do("POST", "/api/sessions", `{"date":"2026-10-02","minutes":30,"kind":"manual","note":"orgo"}`)
+	bea.do("POST", "/api/sessions", `{"date":"2026-10-02","minutes":45,"kind":"manual","note":"bea's secret"}`)
+
+	code, body := ana.do("GET", "/api/me/export", "")
+	if code != http.StatusOK {
+		t.Fatalf("export = %d", code)
+	}
+	account := body["account"].(map[string]any)
+	sessions := body["studySessions"].([]any)
+	if account["email"] != "ana@example.com" || len(sessions) != 1 || sessions[0].(map[string]any)["note"] != "orgo" {
+		t.Errorf("export = %v", body)
+	}
+	raw, _ := json.Marshal(body)
+	if strings.Contains(string(raw), "argon2") || strings.Contains(string(raw), "bea") {
+		t.Errorf("export leaks a password hash or another user's data: %s", raw)
+	}
+	if code, _ := env.client(t).do("GET", "/api/me/export", ""); code != http.StatusUnauthorized {
+		t.Errorf("anonymous export = %d, want 401", code)
 	}
 }

@@ -76,7 +76,8 @@ const post = <T>(path: string, body?: unknown, method = "POST") =>
 
 export const auth = {
   providers: () => request<{ google: boolean }>("/auth/providers"),
-  signup: (b: { email: string; username: string; password: string }) => post<void>("/auth/signup", b),
+  signup: (b: { email: string; username: string; password: string; acceptTerms: boolean }) =>
+    post<void>("/auth/signup", b),
   login: (b: { email: string; password: string }) => post<Me>("/auth/login", b),
   logout: () => post<void>("/auth/logout"),
   verify: (token: string) => post<Me>("/auth/verify", { token }),

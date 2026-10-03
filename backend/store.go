@@ -169,6 +169,28 @@ func (s *Store) OnDate(ctx context.Context, userID, date string) ([]Session, err
 	return out, rows.Err()
 }
 
+// AllSessions returns every session a user has logged, oldest first (for data export).
+func (s *Store) AllSessions(ctx context.Context, userID string) ([]Session, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, date, minutes, kind, note, created_at FROM study_sessions
+		 WHERE user_id = ? ORDER BY date, created_at`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Session{}
+	for rows.Next() {
+		var sess Session
+		var created int64
+		if err := rows.Scan(&sess.ID, &sess.Date, &sess.Minutes, &sess.Kind, &sess.Note, &created); err != nil {
+			return nil, err
+		}
+		sess.CreatedAt = time.UnixMilli(created).UTC()
+		out = append(out, sess)
+	}
+	return out, rows.Err()
+}
+
 // DailyTotals sums minutes and session counts per date.
 func (s *Store) DailyTotals(ctx context.Context, userID string) (map[string]DayTotal, error) {
 	rows, err := s.db.QueryContext(ctx,
