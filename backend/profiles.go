@@ -26,6 +26,7 @@ func (a *App) profileRoutes(mux *http.ServeMux) {
 	}))
 	mux.HandleFunc("GET /api/users/{username}/contributions", a.publicUser(a.handleContributions))
 	mux.HandleFunc("GET /api/users/{username}/years", a.publicUser(a.handleYears))
+	mux.HandleFunc("GET /api/users/{username}/card.svg", a.handleProfileCard)
 }
 
 func (a *App) publicUser(next func(http.ResponseWriter, *http.Request, *User)) http.HandlerFunc {

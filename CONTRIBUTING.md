@@ -123,6 +123,7 @@ Everything except `/api/health`, `/api/auth/*` and public profiles needs a signe
 | POST | `/api/sessions` | `{ "date", "minutes", "kind": "pomodoro"\|"manual", "note" }` |
 | DELETE | `/api/sessions/{id}` | Remove a session |
 | GET | `/api/users/{username}` (`/contributions`, `/years`) | Public profile and graph. No sign-in needed; returns 404 unless the user made their profile public |
+| GET | `/api/users/{username}/card.svg?theme=light\|dark` | Embeddable SVG stats card (mini heatmap, hours, streaks). Private and unknown users get the same placeholder card; cached for 30 minutes |
 
 The client sends `today` as its own local date, so days roll over at the user's midnight, not the server's. Graph intensity levels: none, under 1h, 1–2h, 2–4h, 4h+.
 

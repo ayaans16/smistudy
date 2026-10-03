@@ -164,8 +164,49 @@ function VisibilitySection({ me, onSaved }: { me: Me; onSaved: (me: Me) => void 
           </button>
         </div>
       )}
+      {me.profilePublic && <CardEmbed username={me.username} />}
       {error && <div className="mt-3"><FormMessage error={error} /></div>}
     </Section>
+  );
+}
+
+/** Copyable Markdown for the SVG stats card, e.g. for a GitHub profile README. */
+function CardEmbed({ username }: { username: string }) {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [copied, setCopied] = useState(false);
+  const origin = typeof window === "undefined" ? "https://smistudy.ca" : window.location.origin;
+  const card = `/api/users/${username}/card.svg${theme === "dark" ? "?theme=dark" : ""}`;
+  const markdown = `[![smistudy stats](${origin}${card})](${origin}/u/${username})`;
+
+  return (
+    <div className="mt-5 border-t border-line pt-5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold">Stats card</h3>
+        <div className="flex gap-1 rounded-full bg-bg p-1 text-xs font-semibold">
+          {(["light", "dark"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTheme(t)}
+              className={`rounded-full px-3 py-1 capitalize transition ${theme === t ? "bg-card shadow-sm" : "text-muted"}`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-1 text-xs text-muted">Show your study stats anywhere that supports images, like your GitHub profile README.</p>
+      {/* eslint-disable-next-line @next/next/no-img-element -- a live SVG from our own API, not a static asset */}
+      <img src={card} alt="Your smistudy stats card" width={495} height={195} className="mt-3 h-auto w-full max-w-[495px]" />
+      <div className="mt-3 flex items-center gap-2 rounded-xl bg-bg px-3 py-2 text-xs">
+        <code className="min-w-0 flex-1 truncate">{markdown}</code>
+        <button
+          onClick={() => navigator.clipboard.writeText(markdown).then(() => setCopied(true))}
+          className="shrink-0 rounded-full border border-line px-3 py-1 font-bold transition hover:border-muted"
+        >
+          {copied ? "Copied!" : "Copy Markdown"}
+        </button>
+      </div>
+    </div>
   );
 }
 
