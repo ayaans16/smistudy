@@ -25,6 +25,22 @@ export default function SettingsPage() {
           <ProfileSection me={me} onSaved={setMe} />
           <VisibilitySection me={me} onSaved={setMe} />
           <PasswordSection me={me} />
+          <Section
+            title="Your data"
+            description="Download a copy of everything smistudy stores about you (your account details and every study session) as a JSON file."
+          >
+            <a
+              href="/api/me/export"
+              download
+              className="inline-block rounded-full bg-fg px-5 py-2 text-sm font-bold text-bg transition hover:opacity-90"
+            >
+              Download my data
+            </a>
+            <p className="mt-3 text-xs text-muted">
+              See the <Link href="/privacy" className="font-semibold text-accent-strong hover:underline">Privacy Policy</Link> for
+              how we handle your information.
+            </p>
+          </Section>
           <DeleteSection me={me} />
         </main>
       )}

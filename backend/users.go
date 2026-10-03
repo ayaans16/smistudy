@@ -29,10 +29,15 @@ type User struct {
 	FailedLogins  int       `json:"-"`
 	LockedUntil   time.Time `json:"-"`
 	CreatedAt     time.Time `json:"createdAt"`
+	TermsVersion  string    `json:"termsVersion"`
 }
 
+// TermsVersion is the "last updated" date of the current Terms and Privacy Policy.
+// Bump it (and the date on the pages) whenever either document changes materially.
+const TermsVersion = "2026-10-03"
+
 const userColumns = `id, email, email_verified, COALESCE(password_hash, ''), COALESCE(google_sub, ''),
-	username, display_name, profile_public, failed_logins, locked_until, created_at`
+	username, display_name, profile_public, failed_logins, locked_until, created_at, terms_version`
 
 type scanner interface{ Scan(...any) error }
 
@@ -40,7 +45,7 @@ func scanUser(row scanner) (*User, error) {
 	var u User
 	var locked, created int64
 	err := row.Scan(&u.ID, &u.Email, &u.EmailVerified, &u.PasswordHash, &u.GoogleSub,
-		&u.Username, &u.DisplayName, &u.ProfilePublic, &u.FailedLogins, &locked, &created)
+		&u.Username, &u.DisplayName, &u.ProfilePublic, &u.FailedLogins, &locked, &created, &u.TermsVersion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -78,10 +83,13 @@ func (s *Store) UserByGoogleSub(ctx context.Context, sub string) (*User, error) 
 func (s *Store) CreateUser(ctx context.Context, u *User) error {
 	u.ID = newID()
 	u.CreatedAt = time.Now().UTC().Truncate(time.Millisecond)
+	u.TermsVersion = TermsVersion // callers only create users who have agreed to the current terms
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO users (id, email, email_verified, password_hash, google_sub, username, display_name, created_at)
-		 VALUES (?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?)`,
-		u.ID, u.Email, u.EmailVerified, u.PasswordHash, u.GoogleSub, u.Username, u.DisplayName, u.CreatedAt.UnixMilli())
+		`INSERT INTO users (id, email, email_verified, password_hash, google_sub, username, display_name, created_at,
+		                    terms_accepted_at, terms_version)
+		 VALUES (?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?, ?)`,
+		u.ID, u.Email, u.EmailVerified, u.PasswordHash, u.GoogleSub, u.Username, u.DisplayName, u.CreatedAt.UnixMilli(),
+		u.CreatedAt.UnixMilli(), u.TermsVersion)
 	return uniqueErr(err)
 }
 
