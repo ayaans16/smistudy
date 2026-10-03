@@ -64,7 +64,7 @@ func (l *Limiter) janitor() {
 }
 
 type limits struct {
-	api, signup, login, loginEmail, emailSend, token, oauth *Limiter
+	api, signup, login, loginEmail, emailSend, token, oauth, follow *Limiter
 }
 
 func newLimits() *limits {
@@ -76,5 +76,6 @@ func newLimits() *limits {
 		emailSend:  NewLimiter(20*time.Minute, 3),       // 3 emails/hour per address
 		token:      NewLimiter(3*time.Minute, 20),       // 20 token checks/hour per IP
 		oauth:      NewLimiter(3*time.Second, 20),       // 20/min per IP
+		follow:     NewLimiter(2*time.Second, 30),       // 30 follows/blocks per minute per user
 	}
 }
