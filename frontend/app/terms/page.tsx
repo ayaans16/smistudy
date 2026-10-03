@@ -92,10 +92,15 @@ export default function TermsPage() {
         not official artwork.
       </p>
 
-      <h2>7. Our content</h2>
+      <h2>7. Open-source code</h2>
       <p>
-        The Service&apos;s design, code, text and original illustrations belong to us or our licensors. You may use the Service
-        as intended, but may not copy, modify or redistribute these except as the law allows.
+        smistudy&apos;s source code, including its original illustrations, is open source under the{" "}
+        <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noreferrer">GNU Affero General Public License
+        v3.0</a> and is available at{" "}
+        <a href="https://github.com/ayaans16/smistudy" target="_blank" rel="noreferrer">github.com/ayaans16/smistudy</a>. You may
+        use, change and share it under that licence. These Terms don&apos;t restrict any rights the licence gives you, but if
+        you run your own copy, it isn&apos;t smistudy: please use a different name, and don&apos;t suggest that we run or
+        endorse it.
       </p>
 
       <h2>8. Suspension and termination</h2>
