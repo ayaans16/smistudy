@@ -17,12 +17,33 @@ func (a *App) profileRoutes(mux *http.ServeMux) {
 		if !ok {
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		followers, following, err := a.store.FollowCounts(r.Context(), u.ID)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		profile := map[string]any{
 			"username":    u.Username,
 			"displayName": u.DisplayName,
 			"joinedAt":    u.CreatedAt.Format(time.RFC3339),
 			"stats":       BuildStats(totals, today),
-		})
+			"followers":   followers,
+			"following":   following,
+		}
+		// For a signed-in visitor, include how they're connected (drives the Follow button).
+		if viewer, _ := a.currentUser(r); viewer != nil {
+			relation := map[string]bool{"isSelf": viewer.ID == u.ID}
+			if relation["following"], err = a.store.IsFollowing(r.Context(), viewer.ID, u.ID); err != nil {
+				serverError(w, err)
+				return
+			}
+			if relation["followsYou"], err = a.store.IsFollowing(r.Context(), u.ID, viewer.ID); err != nil {
+				serverError(w, err)
+				return
+			}
+			profile["viewer"] = relation
+		}
+		writeJSON(w, http.StatusOK, profile)
 	}))
 	mux.HandleFunc("GET /api/users/{username}/contributions", a.publicUser(a.handleContributions))
 	mux.HandleFunc("GET /api/users/{username}/years", a.publicUser(a.handleYears))

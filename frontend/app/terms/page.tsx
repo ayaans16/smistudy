@@ -76,7 +76,7 @@ export default function TermsPage() {
           access controls, and introducing malware;
         </li>
         <li>scrape, crawl or collect data from the Service by automated means, except public profiles at a reasonable rate;</li>
-        <li>use the Service to send spam or to build a competing product from our code or design.</li>
+        <li>use the Service to send spam, or follow, unfollow or block people in bulk or by automated means.</li>
       </ul>
       <p>
         <strong>Found a security issue?</strong> Please report it to {mail} and give us a reasonable chance to fix it before

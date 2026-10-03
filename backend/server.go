@@ -42,6 +42,7 @@ func (a *App) Handler() http.Handler {
 	a.profileRoutes(mux)
 	a.todoRoutes(mux)
 	a.goalRoutes(mux)
+	a.followRoutes(mux)
 
 	// Study data — every route below acts only on the signed-in user's rows.
 	mux.HandleFunc("GET /api/contributions", a.requireUser(a.handleContributions))

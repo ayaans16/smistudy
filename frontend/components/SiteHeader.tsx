@@ -63,6 +63,9 @@ function UserMenu({ me }: { me: Me }) {
               My public profile
             </Link>
           )}
+          <Link href="/friends" className="block px-4 py-2 hover:bg-accent-soft" onClick={() => setOpen(false)}>
+            Friends
+          </Link>
           <Link href="/settings" className="block px-4 py-2 hover:bg-accent-soft" onClick={() => setOpen(false)}>
             Settings
           </Link>
