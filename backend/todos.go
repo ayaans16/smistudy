@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"time"
 )
 
@@ -117,4 +118,89 @@ func (s *Store) ClearDoneTodos(ctx context.Context, userID string) (int64, error
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+
+// --- handlers ---
+
+func (a *App) todoRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/todos", a.requireUser(a.handleListTodos))
+	mux.HandleFunc("POST /api/todos", a.requireUser(a.handleAddTodo))
+	mux.HandleFunc("PATCH /api/todos/{id}", a.requireUser(a.handleUpdateTodo))
+	mux.HandleFunc("DELETE /api/todos/{id}", a.requireUser(a.handleDeleteTodo))
+	mux.HandleFunc("POST /api/todos/clear-done", a.requireUser(a.handleClearDoneTodos))
+}
+
+func (a *App) handleListTodos(w http.ResponseWriter, r *http.Request, u *User) {
+	todos, err := a.store.Todos(r.Context(), u.ID)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, todos)
+}
+
+func (a *App) handleAddTodo(w http.ResponseWriter, r *http.Request, u *User) {
+	var in struct{ Text string }
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	text := cleanText(in.Text, 200)
+	if text == "" {
+		writeError(w, http.StatusBadRequest, "write something to do first")
+		return
+	}
+	t, err := a.store.AddTodo(r.Context(), u.ID, text)
+	switch {
+	case errors.Is(err, ErrTooManyTodos):
+		writeError(w, http.StatusConflict, "your list is full (200 items) — clear some completed ones first")
+	case err != nil:
+		serverError(w, err)
+	default:
+		writeJSON(w, http.StatusCreated, t)
+	}
+}
+
+func (a *App) handleUpdateTodo(w http.ResponseWriter, r *http.Request, u *User) {
+	var in TodoUpdate
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	if in.Text != nil {
+		text := cleanText(*in.Text, 200)
+		if text == "" {
+			writeError(w, http.StatusBadRequest, "a to-do can't be empty")
+			return
+		}
+		in.Text = &text
+	}
+	t, err := a.store.UpdateTodo(r.Context(), u.ID, r.PathValue("id"), in)
+	switch {
+	case err != nil:
+		serverError(w, err)
+	case t == nil:
+		writeError(w, http.StatusNotFound, "to-do not found")
+	default:
+		writeJSON(w, http.StatusOK, t)
+	}
+}
+
+func (a *App) handleDeleteTodo(w http.ResponseWriter, r *http.Request, u *User) {
+	found, err := a.store.DeleteTodo(r.Context(), u.ID, r.PathValue("id"))
+	switch {
+	case err != nil:
+		serverError(w, err)
+	case !found:
+		writeError(w, http.StatusNotFound, "to-do not found")
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (a *App) handleClearDoneTodos(w http.ResponseWriter, r *http.Request, u *User) {
+	n, err := a.store.ClearDoneTodos(r.Context(), u.ID)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int64{"cleared": n})
 }
