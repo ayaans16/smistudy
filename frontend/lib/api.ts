@@ -106,6 +106,22 @@ export const profiles = {
   years: (username: string, today: string) => request<number[]>(`${user(username)}/years?today=${today}`),
 };
 
+export type Todo = {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: string;
+  doneAt?: string;
+};
+
+export const todos = {
+  list: () => request<Todo[]>("/todos"),
+  add: (text: string) => post<Todo>("/todos", { text }),
+  update: (id: string, b: { text?: string; done?: boolean }) => post<Todo>(`/todos/${encodeURIComponent(id)}`, b, "PATCH"),
+  remove: (id: string) => post<void>(`/todos/${encodeURIComponent(id)}`, undefined, "DELETE"),
+  clearDone: () => post<{ cleared: number }>("/todos/clear-done"),
+};
+
 export const api = {
   contributions: (filter: string, today: string) =>
     request<Calendar>(`/contributions?filter=${filter}&today=${today}`),
