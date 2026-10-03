@@ -152,4 +152,9 @@ func TestRemoveFollowerAndFriendsLeaderboard(t *testing.T) {
 	if _, followers := ana.doList("GET", "/api/me/followers"); len(followers) != 0 {
 		t.Errorf("follower not removed: %v", followers)
 	}
+
+	_, body := ana.do("GET", "/api/me/export", "")
+	if f, _ := body["following"].([]any); len(f) != 2 {
+		t.Errorf("export following = %v", body["following"])
+	}
 }
