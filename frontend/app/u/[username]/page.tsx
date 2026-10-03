@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use, useEffect, useState, useSyncExternalStore } from "react";
+import { FollowButton, FollowCounts, FollowListPanel, ProfileSafetyActions } from "@/components/FollowControls";
 import { AngelBuddy, SmiBuddy } from "@/components/Mascots";
 import SiteHeader from "@/components/SiteHeader";
 import StudyGraph from "@/components/StudyGraph";
@@ -14,9 +16,13 @@ const noop = () => () => {};
 export default function ProfilePage({ params }: PageProps<"/u/[username]">) {
   const { username } = use(params);
   const { me } = useMe();
+  const router = useRouter();
   const today = useSyncExternalStore(noop, () => localDateKey(), () => "");
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [missing, setMissing] = useState(false);
+  const [openList, setOpenList] = useState<"followers" | "following" | null>(null);
+  const [version, setVersion] = useState(0); // bump to reload after following/unfollowing
+  const reload = () => setVersion((v) => v + 1);
 
   useEffect(() => {
     if (!today) return;
@@ -28,7 +34,7 @@ export default function ProfilePage({ params }: PageProps<"/u/[username]">) {
     return () => {
       cancelled = true;
     };
-  }, [username, today]);
+  }, [username, today, version]);
 
   useEffect(() => {
     if (profile) document.title = `${profile.displayName || profile.username} — smistudy`;
@@ -63,6 +69,7 @@ export default function ProfilePage({ params }: PageProps<"/u/[username]">) {
                   Studying since{" "}
                   {new Date(profile.joinedAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
                 </p>
+                <FollowCounts profile={profile} open={openList} onOpen={setOpenList} />
               </div>
             </div>
             <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
@@ -78,8 +85,15 @@ export default function ProfilePage({ params }: PageProps<"/u/[username]">) {
                 </div>
               ))}
             </div>
+            <div className="sm:self-start">
+              <FollowButton profile={profile} signedIn={Boolean(me)} onChange={reload} />
+            </div>
           </section>
+          {openList && <FollowListPanel username={profile.username} list={openList} version={version} />}
           <StudyGraph today={today} username={profile.username} />
+          {me && profile.viewer && !profile.viewer.isSelf && (
+            <ProfileSafetyActions username={profile.username} onBlocked={() => router.push("/friends?tab=blocked")} />
+          )}
         </main>
       )}
     </div>
