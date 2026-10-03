@@ -129,3 +129,40 @@ func TestBackup(t *testing.T) {
 		t.Errorf("backup is missing data: %+v", totals)
 	}
 }
+
+// Several API processes starting at once against a fresh database (as systemd does
+// after a deploy) must not race each other through migrations or the legacy import.
+func TestConcurrentStartup(t *testing.T) {
+	dir := t.TempDir()
+	db := filepath.Join(dir, "shared.db")
+	legacy := filepath.Join(dir, "sessions.json")
+	os.WriteFile(legacy, []byte(`[{"id":"a","date":"2026-09-30","minutes":50,"kind":"pomodoro"},{"id":"b","date":"2026-10-01","minutes":25,"kind":"manual"}]`), 0o644)
+
+	const n = 6
+	errs := make(chan error, n)
+	stores := make(chan *Store, n)
+	for i := 0; i < n; i++ {
+		go func() {
+			s, err := OpenStore(db)
+			if err == nil {
+				_, err = s.ImportLegacyJSON(context.Background(), legacy)
+				stores <- s
+			}
+			errs <- err
+		}()
+	}
+	for i := 0; i < n; i++ {
+		if err := <-errs; err != nil {
+			t.Errorf("startup %d: %v", i, err)
+		}
+	}
+	close(stores)
+	var count int
+	for s := range stores {
+		s.db.QueryRow(`SELECT COUNT(*) FROM study_sessions`).Scan(&count)
+		s.Close()
+	}
+	if count != 2 {
+		t.Errorf("%d sessions after concurrent import, want 2", count)
+	}
+}

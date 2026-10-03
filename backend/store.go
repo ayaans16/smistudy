@@ -49,14 +49,27 @@ func OpenStore(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
+	// busy_timeout goes first so every later step (including switching to WAL) waits for
+	// other processes instead of failing. _txlock=immediate takes the write lock when a
+	// transaction starts, so concurrent writers queue rather than deadlock on upgrade.
 	dsn := "file:" + path +
-		"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)"
+		"?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)" +
+		"&_txlock=immediate"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
 	s := &Store{db: db}
-	if err := s.migrate(context.Background()); err != nil {
+	// Switching a brand-new database to WAL ignores busy_timeout when another process is
+	// doing the same, so retry briefly on "busy" while starting up.
+	for attempt := 0; ; attempt++ {
+		err = s.migrate(context.Background())
+		if err == nil || attempt == 50 || !strings.Contains(err.Error(), "SQLITE_BUSY") {
+			break
+		}
+		time.Sleep(time.Duration(20+attempt*10) * time.Millisecond)
+	}
+	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
@@ -76,34 +89,40 @@ func (s *Store) migrate(ctx context.Context) error {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		var done int
-		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations WHERE name = ?`, name).Scan(&done); err != nil {
-			return err
-		}
-		if done > 0 {
-			continue
-		}
-		body, err := migrationFiles.ReadFile(name)
-		if err != nil {
-			return err
-		}
-		tx, err := s.db.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, string(body)); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("%s: %w", name, err)
-		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (name) VALUES (?)`, name); err != nil {
-			tx.Rollback()
-			return err
-		}
-		if err := tx.Commit(); err != nil {
+		if err := s.applyMigration(ctx, name); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// applyMigration runs one migration unless it's already recorded. The check happens
+// inside the write-locked transaction, so when several processes start at once only
+// the first applies it and the rest see it as done.
+func (s *Store) applyMigration(ctx context.Context, name string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var done int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations WHERE name = ?`, name).Scan(&done); err != nil {
+		return err
+	}
+	if done > 0 {
+		return nil
+	}
+	body, err := migrationFiles.ReadFile(name)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, string(body)); err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (name) VALUES (?)`, name); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) Add(ctx context.Context, userID string, sess Session) (Session, error) {
@@ -180,22 +199,23 @@ func (s *Store) ImportLegacyJSON(ctx context.Context, path string) (int, error) 
 	if err != nil {
 		return 0, err
 	}
-	var existing int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM study_sessions`).Scan(&existing); err != nil {
-		return 0, err
-	}
-	if existing > 0 {
-		return 0, nil
-	}
 	var legacy []Session
 	if err := json.Unmarshal(data, &legacy); err != nil {
 		return 0, fmt.Errorf("parse %s: %w", path, err)
 	}
+	// Check-and-insert under one write lock, so concurrent startups import only once.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
+	var existing int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM study_sessions`).Scan(&existing); err != nil {
+		return 0, err
+	}
+	if existing > 0 {
+		return 0, nil
+	}
 	for _, sess := range legacy {
 		if sess.ID == "" {
 			sess.ID = newID()
