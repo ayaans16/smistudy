@@ -41,7 +41,7 @@ export function FollowButton({ profile, signedIn, onChange }: { profile: PublicP
   }
 
   return (
-    <div className="flex flex-col items-start gap-1 sm:items-end">
+    <div className="flex flex-col items-start gap-1">
       <div className="flex items-center gap-2">
         {profile.viewer.followsYou && <span className="rounded-full bg-bg px-2 py-0.5 text-xs font-semibold text-muted">Follows you</span>}
         <button

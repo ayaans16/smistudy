@@ -70,6 +70,9 @@ export default function ProfilePage({ params }: PageProps<"/u/[username]">) {
                   {new Date(profile.joinedAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
                 </p>
                 <FollowCounts profile={profile} open={openList} onOpen={setOpenList} />
+                <div className="mt-3">
+                  <FollowButton profile={profile} signedIn={Boolean(me)} onChange={reload} />
+                </div>
               </div>
             </div>
             <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
@@ -84,9 +87,6 @@ export default function ProfilePage({ params }: PageProps<"/u/[username]">) {
                   <div className="mt-1 text-xl font-extrabold tabular-nums">{value}</div>
                 </div>
               ))}
-            </div>
-            <div className="sm:self-start">
-              <FollowButton profile={profile} signedIn={Boolean(me)} onChange={reload} />
             </div>
           </section>
           {openList && <FollowListPanel username={profile.username} list={openList} version={version} />}
