@@ -49,6 +49,10 @@ export default function PrivacyPage() {
           <strong>Study data:</strong> the study sessions you log: the date, the length in minutes, whether it came from the
           Pomodoro timer or was logged manually, any note you add, and when it was recorded.
         </li>
+        <li>
+          <strong>To-do list:</strong> the tasks you add, whether each is done, and when it was created and completed. Your
+          to-do list is private and never appears on your public profile or stats card.
+        </li>
         <li><strong>Messages:</strong> anything you send us by email, such as a privacy request.</li>
       </ul>
       <h3>Information from Google, if you use &quot;Continue with Google&quot;</h3>
@@ -82,7 +86,7 @@ export default function PrivacyPage() {
       <h2>3. Why we use it</h2>
       <ul>
         <li>To create your account, sign you in and keep your account secure.</li>
-        <li>To store your study sessions and show you your graph, streaks and statistics.</li>
+        <li>To store your study sessions and to-do list, and show you your graph, streaks and statistics.</li>
         <li>To show your public profile, only if you choose to turn it on.</li>
         <li>
           To send emails about your account: confirming your email address, resetting your password, or telling you someone
@@ -155,7 +159,7 @@ export default function PrivacyPage() {
       <ul>
         <li><strong>Account and study data:</strong> as long as your account exists.</li>
         <li>
-          <strong>When you delete your account:</strong> your account, sessions and study data are removed from our live
+          <strong>When you delete your account:</strong> your account, sessions, study data and to-do list are removed from our live
           database immediately. Copies in our daily backups are deleted automatically within 14 days.
         </li>
         <li><strong>Sign-in sessions:</strong> expire 30 days after you were last active (sooner if you log out).</li>
